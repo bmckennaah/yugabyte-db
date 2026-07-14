@@ -684,7 +684,7 @@ Result<string> WritePostgresConfig(const PgProcessConf& conf) {
   // are not currently built in the YB PG19 tree.
   // Uncomment these lines when they are available.
   // metricsLibs.push_back("pgaudit");
-  // metricsLibs.push_back("pg_hint_plan");
+  metricsLibs.push_back("pg_hint_plan");
   // metricsLibs.push_back("yb_xcluster_ddl_replication");
 
   if (FLAGS_enable_pg_cron) {

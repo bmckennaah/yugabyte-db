@@ -1,3 +1,7 @@
+-- YB_TODO_PG19MERGE: Expression pushdown is not yet functional on the PG19 merge
+-- branch, so this test's plans show "Filter" instead of the expected "Storage
+-- Filter" and the golden currently fails. Revisit and regenerate this expected
+-- output once expression pushdown is restored.
 \set ECHO all
 SET client_min_messages = warning;
 drop schema if exists yb_hints cascade;
@@ -136,7 +140,7 @@ explain (hints on, costs off) select count(*) from t1, t2, t3, (select b4 from t
 explain (hints on, costs off) select count(*) from t1, t2, t3 where a1=a2 and a1=a3 and b1 in (select a4 from t4 group by a4, b4) and b2 in (select a5 from t5 group by a5, b5);
 
 -- Change join order and use all merge joins.
-/*+ Leading((((t1 ANY_subquery) ANY_subquery_1) t2)) MergeJoin(t1 ANY_subquery) MergeJoin(t1 ANY_subquery ANY_subquery_1) MergeJoin(ANY_subquery ANY_subquery_1 t1 t2) */ explain (hints on, costs off) select count(*) from t1, t2 where a1=a2 and b1 in (select a4 from t4 group by a4, b4) and b2 in (select a5 from t5 group by a5, b5);
+/*+ Leading((((t1 unnamed_subquery) unnamed_subquery_1) t2)) MergeJoin(t1 unnamed_subquery) MergeJoin(t1 unnamed_subquery unnamed_subquery_1) MergeJoin(unnamed_subquery unnamed_subquery_1 t1 t2) */ explain (hints on, costs off) select count(*) from t1, t2 where a1=a2 and b1 in (select a4 from t4 group by a4, b4) and b2 in (select a5 from t5 group by a5, b5);
 
 -- Hint generation for VALUES clause(s). Should see no errors/warnings.
 explain (hints on, costs off) select val1.c1 from (values(1, 1), (2, 2), (3, 3)) val1(c0, c1), t0, t1, (values(1, 1), (2, 2), (3, 3)) val2(c0, c1)  where val1.c1=a0 and a0=a1 and val2.c1=val1.c1;
@@ -269,12 +273,11 @@ explain (hints on, costs off) SELECT t1.a, t1.c, t2.b, t2.c FROM prt1 t1, prt2 t
 -- Test hint table using query id instead of query text.
 create extension if not exists pg_hint_plan;
 set pg_hint_plan.enable_hint_table to on;
-set pg_hint_plan.yb_use_query_id_for_hinting to on;
 
 delete from hint_plan.hints;
 
 -- Query id is expected to be -7371982929224359937 for 'select * from information_schema.columns'.
-INSERT INTO hint_plan.hints (norm_query_string, application_name, hints) VALUES ('-7371982929224359937', '', 'Leading(((dep seq) ((co nco) (nt (((((c a) t) (bt nbt)) ad) nc))))) set(yb_prefer_bnl false) set(yb_enable_batchednl false) Set(from_collapse_limit 12) Set(join_collapse_limit 12) Set(geqo false)');
+INSERT INTO hint_plan.hints (query_id, application_name, hints) VALUES (-7371982929224359937, '', 'Leading(((dep seq) ((co nco) (nt (((((c a) t) (bt nbt)) ad) nc))))) set(yb_prefer_bnl false) set(yb_enable_batchednl false) Set(from_collapse_limit 12) Set(join_collapse_limit 12) Set(geqo false)');
 
 select * from hint_plan.hints;
 
@@ -283,7 +286,6 @@ explain (hints on, costs off, verbose on) select * from information_schema.colum
 delete from hint_plan.hints;
 
 reset pg_hint_plan.enable_hint_table;
-reset pg_hint_plan.yb_use_query_id_for_hinting;
 
 -- Test Leading semantics. Since this form of Leading allows (((t1 t2) t3)) or (((t2 t1) t3)) the following
 -- 2 queries should give the same plan.
@@ -458,7 +460,7 @@ set pg_hint_plan.yb_bad_hint_mode to error;
 
 -- Try to join subqueries first. This is illegal because they are semijoined so should see warnings.
 set pg_hint_plan.yb_bad_hint_mode to warn;
-/*+ Leading((((ANY_subquery ANY_subquery_1) t1) t2)) */ explain (hints on, costs off, uids on) select count(*) from t1, t2 where a1=a2 and b1 in (select a4 from t4 group by a4, b4) and b2 in (select a5 from t5 group by a5, b5);
+/*+ Leading((((unnamed_subquery unnamed_subquery_1) t1) t2)) */ explain (hints on, costs off, uids on) select count(*) from t1, t2 where a1=a2 and b1 in (select a4 from t4 group by a4, b4) and b2 in (select a5 from t5 group by a5, b5);
 
 set pg_hint_plan.yb_bad_hint_mode to replan;
 -- Not OK since forcing t1 and t2 to be directly joined. Should generate warnings and replan.

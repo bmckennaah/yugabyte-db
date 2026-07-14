@@ -780,7 +780,7 @@ class PostgresBuilder(YbBuildToolBase):
         pg_compile_commands_paths = []
 
         # YB_TODO_PG19MERGE: skip third party extensions for now
-        external_extension_subdirs = ['yb-extensions']
+        external_extension_subdirs = ['yb-extensions', 'third-party-extensions/pg_hint_plan']
         external_extension_dirs = [os.path.join(self.pg_build_root, d)
                                    for d in external_extension_subdirs]
         work_dirs = [

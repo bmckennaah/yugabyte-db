@@ -9626,11 +9626,15 @@ get_parameter(Param *param, deparse_context *context)
 	/*
 	 * Not PARAM_EXEC, or couldn't find referent: just print $N.
 	 *
-	 * It's a bug if we get here for anything except PARAM_EXTERN Params, but
-	 * in production builds printing $N seems more useful than failing.
+	 * Upstream asserts here that the Param must be PARAM_EXTERN, on the theory
+	 * that every PARAM_EXEC reference can be resolved to a referent.  That does
+	 * not hold in YugabyteDB: a batched nested loop reserves a contiguous run
+	 * of PARAM_EXEC slots for the batch (only the base slot is recorded in the
+	 * NestLoopParam list), so deparsing the inner scan's Index Cond reaches
+	 * here for the non-base batch slots and simply prints them as $N (e.g.
+	 * "ANY (ARRAY[outer.col, $1, $2, ..., $1023])").  Keep the upstream comment
+	 * intent but drop the assert so assert-enabled builds don't trip on it.
 	 */
-	Assert(param->paramkind == PARAM_EXTERN);
-
 	appendStringInfo(context->buf, "$%d", param->paramid);
 }
 
